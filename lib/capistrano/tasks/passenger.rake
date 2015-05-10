@@ -3,6 +3,7 @@ namespace :passenger do
   task :setup do
     invoke 'passenger:upload_nginx_config_template' if fetch(:passenger_use_nginx_config_template, false) == true
     invoke 'passenger:create_init_script'
+    invoke 'passenger:create_log_rotate_script'
     invoke 'passenger:start'
   end
 
@@ -50,6 +51,29 @@ eos
       upload! StringIO.new(script), tmp_file
       sudo :cp, '-f', tmp_file, init_script_file
       sudo :chmod, 'ugo+r', init_script_file
+      execute :rm, '-f', tmp_file
+    end
+  end
+
+  desc 'Create Passenger log rotate script'
+  task :create_log_rotate_script do
+    on roles(:app) do
+      script = <<-eos
+#{fetch(:passenger_log_dir, "#{shared_path}/log")}/*.log {
+  daily
+  rotate 7
+  compress
+  copytruncate
+  delaycompress
+  missingok
+  notifempty
+}
+eos
+      log_rotate_script_file = "/etc/logrotate.d/#{fetch(:passenger_app_name, fetch(:application))}"
+      tmp_file = "#{fetch(:tmp_dir)}/#{Array.new(10) { [*'0'..'9'].sample }.join}"
+      upload! StringIO.new(script), tmp_file
+      sudo :cp, '-f', tmp_file, log_rotate_script_file
+      sudo :chmod, 'ugo+r', log_rotate_script_file
       execute :rm, '-f', tmp_file
     end
   end
