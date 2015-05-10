@@ -60,6 +60,7 @@ eos
       sudo :start, fetch(:passenger_app_name, fetch(:application))
       sleep 10
       sudo :chown, '-R', "#{host.user}:$(id -gn #{host.user})", fetch(:deploy_to)
+      sudo :chmod, '-R', 'ug+rw', fetch(:deploy_to)
     end
   end
 
