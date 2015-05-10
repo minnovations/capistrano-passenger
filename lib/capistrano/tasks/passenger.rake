@@ -1,6 +1,21 @@
 namespace :passenger do
   desc 'Perform initial Passenger setup'
-  task setup: [:create_init_script, :start]
+  task :setup do
+    invoke 'passenger:upload_nginx_config_template' if fetch(:passenger_use_nginx_config_template, false) == true
+    invoke 'passenger:create_init_script'
+    invoke 'passenger:start'
+  end
+
+  desc 'Upload Nginx config template'
+  task :upload_nginx_config_template do
+    config_template_local = fetch(:passenger_nginx_config_template_local, 'config/deploy/nginx_config_template.conf.erb')
+    config_template_remote = fetch(:passenger_nginx_config_template_remote, "#{shared_path}/passenger/nginx_config_template.conf.erb")
+
+    on roles(:app) do
+      execute :mkdir, '-p', File.dirname(config_template_remote)
+      upload! config_template_local, config_template_remote
+    end
+  end
 
   desc 'Create Passenger init script'
   task :create_init_script do
@@ -16,13 +31,19 @@ namespace :passenger do
       ssl_options = nil
     end
 
+    if fetch(:passenger_use_nginx_config_template, false) == true
+      nginx_config_template_option = "--nginx-config-template #{fetch(:passenger_nginx_config_template_remote, "#{shared_path}/passenger/nginx_config_template.conf.erb")}"
+    else
+      nginx_config_template_option = nil
+    end
+
     on roles(:app) do
       script = <<-eos
 start on runlevel [2345]
 stop on runlevel [016]
 respawn
 
-exec su - --session-command 'cd #{current_path} && #{fetch(:bundle_command)} exec passenger start --port #{port} --environment #{environment} --log-file log/passenger.log --pid-file tmp/passenger.pid --user #{user} #{ssl_options}'
+exec su - --session-command 'cd #{current_path} && #{fetch(:bundle_command)} exec passenger start --port #{port} --environment #{environment} --log-file log/passenger.log --pid-file tmp/passenger.pid --user #{user} #{ssl_options} #{nginx_config_template_option}'
 eos
       init_script_file = "/etc/init/#{fetch(:passenger_app_name, fetch(:application))}.conf"
       tmp_file = "#{fetch(:tmp_dir)}/#{Array.new(10) { [*'0'..'9'].sample }.join}"
