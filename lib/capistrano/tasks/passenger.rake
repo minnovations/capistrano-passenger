@@ -4,6 +4,7 @@ namespace :passenger do
     invoke 'passenger:upload_nginx_config_template' if fetch(:passenger_use_nginx_config_template, false) == true
     invoke 'passenger:create_init_script'
     invoke 'passenger:create_log_rotate_script'
+    invoke 'passenger:create_symlink_to_application'
     invoke 'passenger:start'
   end
 
@@ -44,7 +45,7 @@ start on runlevel [2345]
 stop on runlevel [016]
 respawn
 
-exec su - --session-command 'cd #{current_path} && #{fetch(:bundle_command)} exec passenger start --port #{port} --environment #{environment} --log-file log/passenger.log --pid-file tmp/passenger.pid --user #{user} #{ssl_options} #{nginx_config_template_option}'
+exec su - --session-command 'cd #{current_path} && #{fetch(:bundle_command)} exec passenger start --port #{port} --environment #{environment} --log-file #{current_path}/log/passenger.log --pid-file #{current_path}/tmp/passenger.pid --user #{user} #{ssl_options} #{nginx_config_template_option}'
 eos
       init_script_file = "/etc/init/#{fetch(:passenger_app_name, fetch(:application))}.conf"
       tmp_file = "#{fetch(:tmp_dir)}/#{Array.new(10) { [*'0'..'9'].sample }.join}"
@@ -75,6 +76,13 @@ eos
       sudo :cp, '-f', tmp_file, log_rotate_script_file
       sudo :chmod, 'ugo+r', log_rotate_script_file
       execute :rm, '-f', tmp_file
+    end
+  end
+
+  desc 'Create symlink to application'
+  task :create_symlink_to_application do
+    on roles([:web, :app, :db]) do
+      execute :ln, '-sf', current_path, "~/#{fetch(:passenger_app_name, fetch(:application))}"
     end
   end
 
