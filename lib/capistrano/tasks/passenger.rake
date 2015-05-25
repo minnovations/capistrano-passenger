@@ -117,5 +117,5 @@ eos
     end
   end
 
-  after 'deploy:publishing', :soft_restart
+  after 'deploy:publishing', :hard_restart
 end
