@@ -5,7 +5,6 @@ namespace :passenger do
     invoke 'passenger:create_init_script'
     invoke 'passenger:create_log_rotate_script'
     invoke 'passenger:create_symlink_to_application'
-    invoke 'passenger:start'
   end
 
   desc 'Upload Nginx config template'
